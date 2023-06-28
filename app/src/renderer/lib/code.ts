@@ -1,5 +1,5 @@
 const LIBRARY_CODE = `
-const transport = {} as any;
+declare const transport: Transport;
 const client = createClient(transport);
 `.trim();
 

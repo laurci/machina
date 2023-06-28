@@ -1,11 +1,13 @@
 import { ipcMain } from "electron";
 
+import * as compiler from "./compiler";
 import * as demo from "./demo";
 import * as window from "./window";
 
 const services = {
 	demo,
 	window,
+	compiler,
 } as const;
 
 export type Services = typeof services;

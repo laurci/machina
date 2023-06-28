@@ -4,12 +4,35 @@ import { Editor } from "@monaco-editor/react";
 import type * as MonacoNs from "monaco-editor/esm/vs/editor/editor.api";
 import { useEffect, useRef, useState } from "react";
 import { getUserCodeStartLine, replaceEnvironmentCode } from "../lib/code";
-import { updateData, useData } from "../lib/data";
+import { data, updateData, useData } from "../lib/data";
+import { ipc } from "../lib/ipc";
 
 type Monaco = typeof MonacoNs;
 
 interface ICustomStandaloneCodeEditor extends MonacoNs.editor.IStandaloneCodeEditor {
 	setHiddenAreas(range: MonacoNs.IRange[]): void;
+}
+
+interface Transport {
+	send(fn: string, args: string): Promise<string>;
+	_use(): void;
+}
+
+function createTransport(baseUrl: string) {
+	const url = `${baseUrl}/x`;
+
+	return {
+		async send(fn: string, args: string): Promise<string> {
+			return fetch(url, {
+				method: "POST",
+				headers: {
+					"x-machinery-service": fn,
+				},
+				body: args,
+			}).then((res) => res.text());
+		},
+		_use() { },
+	};
 }
 
 function RequestMonitor({ tabId }: WorkspaceProps) {
@@ -58,9 +81,25 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 	}, [selectedEnvironment.code]);
 
 	function onMount(editor: ICustomStandaloneCodeEditor, monaco: Monaco) {
-		// TODO: init editor
-		const cmd = editor.addCommand(0, (editor, ...args) => {
-			console.log("machina.executeLabel", editor, args);
+		const cmd = editor.addCommand(0, async (_, label: string, line: number) => {
+			const text = editor.getValue();
+			// console.log("machina.executeLabel", text, label, line);
+			try {
+				const compiled = await ipc.compiler.compile(text);
+
+				const transport = createTransport(data().selectedProject.selectedEnvironment.url);
+				transport._use();
+
+				const exports = {} as any;
+				eval(compiled);
+
+				// console.log(compiled);
+
+				const funcName = `exec_${label}_${line}`;
+				exports[funcName]();
+			} catch (ex: any) {
+				console.error(ex);
+			}
 		});
 
 		let model = editor.getModel() as any;
@@ -81,7 +120,7 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 
 			monaco.languages.registerCodeLensProvider("typescript", {
 				provideCodeLenses: async (model, _token) => {
-					console.log("provideCodeLenses");
+					// console.log("provideCodeLenses");
 					const modelAny = model as any;
 					const cmd = modelAny.__machina_executeLabel_cmd as string;
 
@@ -102,18 +141,18 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 							command: {
 								id: cmd,
 								title: `Execute '${label}'`,
-								arguments: [label],
+								arguments: [label, i],
 							},
 						});
 					}
 
 					return {
 						lenses,
-						dispose() {},
+						dispose() { },
 					};
 				},
 				resolveCodeLens: async (_model, codeLens, _token) => {
-					console.log("resolveCodeLens", codeLens);
+					// console.log("resolveCodeLens", codeLens);
 					return codeLens;
 				},
 			});
@@ -131,6 +170,10 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 						return;
 					}
 				}
+
+				updateData((data) => {
+					data.selectedProject.tabs.find((t) => t.id === tabId)!.code = editor.getValue();
+				});
 			});
 
 			editor.setValue(code);
