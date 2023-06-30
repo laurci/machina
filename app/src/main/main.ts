@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu } from "electron";
 import * as path from "path";
 import { enableIpc } from "./ipc";
 
@@ -27,6 +27,9 @@ const createWindow = () => {
 		},
 	});
 
+	process.platform === "win32" && mainWindow.removeMenu();
+	process.platform === "darwin" && Menu.setApplicationMenu(Menu.buildFromTemplate([]));
+
 	// and load the index.html of the app.
 	if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
 		mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -37,7 +40,7 @@ const createWindow = () => {
 	}
 
 	// Open the DevTools.
-	mainWindow.webContents.openDevTools();
+	// mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished

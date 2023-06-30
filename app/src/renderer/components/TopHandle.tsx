@@ -5,6 +5,7 @@ import {
 	ExternalLinkIcon,
 	HamburgerIcon,
 	RepeatIcon,
+	SettingsIcon,
 	WarningIcon,
 	WarningTwoIcon,
 } from "@chakra-ui/icons";
@@ -191,18 +192,15 @@ function ProjectZone() {
 						variant="outline"
 					/>
 					<MenuList>
-						<MenuItem icon={<AddIcon />} command="⌘T">
-							New Tab
-						</MenuItem>
-						<MenuItem icon={<ExternalLinkIcon />} command="⌘N">
-							New Window
-						</MenuItem>
-						<MenuDivider />
-						<MenuItem icon={<RepeatIcon />} command="⌘⇧N">
-							Open Closed Tab
-						</MenuItem>
 						<MenuItem icon={<EditIcon />} command="⌘O">
 							Open File...
+						</MenuItem>
+						<MenuDivider />
+						<MenuItem
+							icon={<SettingsIcon />}
+							onClick={() => ipc.window.toggleDevTools()}
+						>
+							Toggle DevTools
 						</MenuItem>
 					</MenuList>
 				</Menu>
@@ -236,6 +234,7 @@ function ProjectZone() {
 
 function EnvironmentZone() {
 	const [isOpen, setIsOpen] = useState(false);
+	const [isEdit, setIsEdit] = useState(false);
 	const [newEnvironmentName, setNewEnvironmentName] = useState("");
 	const [newEnvironmentUrl, setNewEnvironmentUrl] = useState("http://");
 
@@ -261,6 +260,32 @@ function EnvironmentZone() {
 		});
 	}
 
+	function openEditEnvironment() {
+		setIsEdit(true);
+		setNewEnvironmentName(selectedEnvironment.name);
+		setNewEnvironmentUrl(selectedEnvironment.url ?? "http://");
+		setIsOpen(true);
+	}
+
+	function editEnvironmentConfirm(name: string, url: string) {
+		updateData((data) => {
+			const project = data.projects.find((p) => p.id === projectId);
+			if (!project) return;
+
+			const env = project.environments.find((e) => e.id === selectedEnvironment.id);
+			if (!env) return;
+
+			env.name = name;
+			env.url = url;
+		});
+
+		setNewEnvironmentName("");
+		setNewEnvironmentUrl("http://");
+
+		setIsEdit(false);
+		setIsOpen(false);
+	}
+
 	function selectEnvironment(environmentId: string) {
 		updateData((data) => {
 			const project = data.projects.find((p) => p.id === projectId);
@@ -281,12 +306,17 @@ function EnvironmentZone() {
 				size="md"
 				onClose={() => {
 					setIsOpen(false);
+					setIsEdit(false);
 				}}
 			>
 				<DrawerOverlay />
 				<DrawerContent>
 					<DrawerCloseButton />
-					<DrawerHeader>Create a new environment</DrawerHeader>
+					<DrawerHeader>
+						{isEdit
+							? `Edit environment ${selectedEnvironment.name}`
+							: "Create a new environment"}
+					</DrawerHeader>
 
 					<DrawerBody>
 						<Input
@@ -310,6 +340,7 @@ function EnvironmentZone() {
 							mr={3}
 							onClick={() => {
 								setIsOpen(false);
+								setIsEdit(false);
 							}}
 						>
 							Cancel
@@ -317,6 +348,11 @@ function EnvironmentZone() {
 						<ChakraButton
 							colorScheme="gray"
 							onClick={() => {
+								if (isEdit) {
+									editEnvironmentConfirm(newEnvironmentName, newEnvironmentUrl);
+									return;
+								}
+
 								createEnvironment(newEnvironmentName, newEnvironmentUrl);
 								setNewEnvironmentName("");
 								setNewEnvironmentUrl("http://");
@@ -411,6 +447,7 @@ function EnvironmentZone() {
 					icon={<EditIcon />}
 					variant="outline"
 					size="sm"
+					onClick={() => openEditEnvironment()}
 				/>
 			</Box>
 		</>

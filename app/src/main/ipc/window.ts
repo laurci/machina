@@ -16,3 +16,8 @@ export async function maximize() {
 		win?.maximize();
 	}
 }
+
+export async function toggleDevTools() {
+	const win = BrowserWindow.getFocusedWindow();
+	win?.webContents.toggleDevTools();
+}
