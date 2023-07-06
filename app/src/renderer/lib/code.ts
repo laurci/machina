@@ -1,5 +1,24 @@
-const LIBRARY_CODE = `
-declare const transport: Transport;
+export const LIBRARY_CODE = `
+interface StoreController<T> {
+	(): T;
+	(value: T): void;
+	(value: (prev: T) => T): void;
+	
+	set(value: T): void;
+  set(value: (prev: T) => T): void;
+};
+
+interface Store {
+    global<T>(defaultValue: T): StoreController<T>;
+    global<T = undefined>(): StoreController<T | undefined>;
+    project<T>(defaultValue: T): StoreController<T>;
+    project<T>(): StoreController<T | undefined>;
+    environment<T>(defaultValue: T): StoreController<T>;
+    environment<T>(): StoreController<T | undefined>;
+};
+
+declare const transport: Transport & { headers: Record<string, string> };
+declare const store: Store;
 const client = createClient(transport);
 `.trim();
 

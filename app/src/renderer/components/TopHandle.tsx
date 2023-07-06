@@ -389,7 +389,7 @@ function EnvironmentZone() {
 								);
 								if (!env) return;
 
-								env.code = response.result;
+								env.code = response.result + `\n// ${Math.random()}`;
 							});
 
 							toast({

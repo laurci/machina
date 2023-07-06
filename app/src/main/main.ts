@@ -27,9 +27,6 @@ const createWindow = () => {
 		},
 	});
 
-	process.platform === "win32" && mainWindow.removeMenu();
-	process.platform === "darwin" && Menu.setApplicationMenu(Menu.buildFromTemplate([]));
-
 	// and load the index.html of the app.
 	if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
 		mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);

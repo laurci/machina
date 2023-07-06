@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactJson from "react-json-view";
 import Lottie from "react-lottie";
 import emptyAnimation from "../../animations/empty.json";
-import { getUserCodeStartLine, replaceEnvironmentCode } from "../lib/code";
+import { LIBRARY_CODE, getUserCodeStartLine, replaceEnvironmentCode } from "../lib/code";
 import { data, updateData, useData } from "../lib/data";
 import { ipc } from "../lib/ipc";
 import { randomId } from "../lib/utils";
@@ -27,6 +27,7 @@ interface ICustomStandaloneCodeEditor extends MonacoNs.editor.IStandaloneCodeEdi
 }
 
 interface Transport {
+	headers: Record<string, string>;
 	send(fn: string, args: string): Promise<string>;
 	_use(): void;
 }
@@ -35,6 +36,7 @@ interface RequestData {
 	id: string;
 	timestamp: number;
 	status: "pending" | "success" | "error";
+	headers: Record<string, string>;
 	method: string;
 	args: any[];
 	result?: any;
@@ -65,12 +67,16 @@ function isRequestData(item: LogItem): item is { request: RequestData } {
 function createTransport(baseUrl: string, pushRequest: (data: RequestData) => void): Transport {
 	const url = `${baseUrl}/x`;
 
+	const headers: Record<string, string> = {};
+
 	return {
+		headers,
 		async send(fn: string, args: string): Promise<string> {
 			const requestId = randomId();
 
 			const request: RequestData = {
 				id: requestId,
+				headers,
 				timestamp: Date.now(),
 				status: "pending",
 				method: fn,
@@ -83,6 +89,7 @@ function createTransport(baseUrl: string, pushRequest: (data: RequestData) => vo
 			return fetch(url, {
 				method: "POST",
 				headers: {
+					...headers,
 					"x-machinery-service": fn,
 				},
 				body: args,
@@ -234,10 +241,14 @@ function Monitor({ tabId, logs }: WorkspaceProps & { logs: LogItem[] }) {
 					height="100%"
 					overflowY="auto"
 					paddingInline="0.5rem"
-					paddingTop="0.5rem"
+					overflowX="hidden"
 				>
 					<Box
-						width="100"
+						width="100%"
+						position="sticky"
+						bg="white"
+						zIndex={999}
+						top="0"
 						display="flex"
 						alignItems="center"
 						justifyContent="space-between"
@@ -289,6 +300,19 @@ function Monitor({ tabId, logs }: WorkspaceProps & { logs: LogItem[] }) {
 							<Text color="green.600">{"}"}</Text>
 						</>
 					)}
+					{Object.keys(selectedRequest.headers).length > 0 && (
+						<>
+							<Text fontSize="md" fontWeight="semibold">
+								Headers
+							</Text>
+							<ReactJson
+								src={selectedRequest.headers}
+								iconStyle="square"
+								name={null}
+								displayDataTypes={false}
+							/>
+						</>
+					)}
 				</Box>
 			)}
 		</Box>
@@ -335,6 +359,7 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 	}, [selectedEnvironment.code]);
 
 	function onMount(editor: ICustomStandaloneCodeEditor, monaco: Monaco) {
+		console.log(monaco.languages.typescript.typescriptVersion);
 		const cmd = editor.addCommand(0, async (_, label: string, line: number) => {
 			const text = editor.getValue();
 			try {
@@ -399,7 +424,7 @@ export default function Workspace({ tabId }: WorkspaceProps) {
 		let model = editor.getModel() as any;
 		model.__machina_executeLabel_cmd = cmd;
 
-		const monacoAny = monaco as any;
+		const monacoAny = window as any;
 		if (!monacoAny.__configured_mahcina) {
 			monacoAny.__configured_mahcina = true;
 			monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
